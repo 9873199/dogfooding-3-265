@@ -9,6 +9,8 @@ const PLAY_MAX_LEN = 200
 const FAVORITE_KEY = '__favorite__'
 const FAVORITE_MAX_LEN = 200
 
+const PLAYER_STATE_KEY = '__player_state__'
+
 function insertArray(arr, val, compare, maxLen) {
   const index = arr.findIndex(compare)
   if (index === 0) {
@@ -90,5 +92,35 @@ export function deleteFavorite(song) {
 
 export function loadFavorite() {
   return storage.get(FAVORITE_KEY, [])
+}
+
+export function savePlayerState(state) {
+  const playerState = {
+    playlist: state.playlist,
+    sequenceList: state.sequenceList,
+    currentIndex: state.currentIndex,
+    mode: state.mode
+  }
+  storage.set(PLAYER_STATE_KEY, playerState)
+  return playerState
+}
+
+export function loadPlayerState() {
+  return storage.get(PLAYER_STATE_KEY, {
+    playlist: [],
+    sequenceList: [],
+    currentIndex: -1,
+    mode: 0
+  })
+}
+
+export function clearPlayerState() {
+  storage.remove(PLAYER_STATE_KEY)
+  return {
+    playlist: [],
+    sequenceList: [],
+    currentIndex: -1,
+    mode: 0
+  }
 }
 

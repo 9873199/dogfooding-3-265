@@ -1,4 +1,5 @@
 import * as types from './mutation-types'
+import { savePlayerState } from '@/common/js/cache'
 
 const matutaions = {
   [types.SET_MINI_PLAYER_HEIGHT](state, height) {
@@ -6,9 +7,11 @@ const matutaions = {
   },
   [types.ADD_PLAY_LIST](state, list) {
     state.playlist.push(...list)
+    savePlayerState(state)
   },
   [types.DELETE_PLAY_LIST_ITEM](state, index) {
     state.playlist.splice(index, 1)
+    savePlayerState(state)
   },
   [types.SET_INITIAL](state, isInited) {
     state.initialed = isInited
@@ -24,15 +27,19 @@ const matutaions = {
   },
   [types.SET_PLAYLIST](state, list) {
     state.playlist = list
+    savePlayerState(state)
   },
   [types.SET_SEQUENCE_LIST](state, list) {
     state.sequenceList = list
+    savePlayerState(state)
   },
   [types.SET_PLAY_MODE](state, mode) {
     state.mode = mode
+    savePlayerState(state)
   },
   [types.SET_CURRENT_INDEX](state, index) {
     state.currentIndex = index
+    savePlayerState(state)
   },
   [types.SET_DISC](state, disc) {
     state.disc = disc

@@ -4,7 +4,7 @@
       :style="{marginTop:$attrs.marginTop+'px'}"
       @click="selectItem(item,index)"
       :class="['list-item']"
-      :key="index"
+      :key="item.id || index"
       v-for="(item,index) in list"
     >
       <div :class="['sortIndex',{newLoad:item.newLoad}]">{{index+preIndex+1}}</div>

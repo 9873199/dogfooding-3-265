@@ -68,8 +68,9 @@ export default {
   },
   computed: {
     wrapperStyle() {
+      const maxHeight = Math.min(window.innerHeight * 0.4, 300)
       return {
-        maxHeight: window.innerHeight / 1.6 + 'px'
+        maxHeight: maxHeight + 'px'
       }
     },
     modeText() {
@@ -82,7 +83,8 @@ export default {
   },
   methods: {
     ...mapMutations({
-      setCurrentIndex: 'SET_CURRENT_INDEX'
+      setCurrentIndex: 'SET_CURRENT_INDEX',
+      setPlayingState: 'SET_PLAYING_STATE'
     }),
     ...mapActions(['deleteSong', 'deleteSongList']),
 
@@ -114,10 +116,14 @@ export default {
       }
     },
     playItem(item, index) {
+      if (this.currentSong.id === item.id) {
+        return
+      }
       if (this.mode === playMode.random) {
         index = this.playlist.findIndex(song => item.id === song.id)
       }
       this.setCurrentIndex(index)
+      this.setPlayingState(true)
     },
     scrollToCurrent() {
       const index = this.sequenceList.findIndex(
@@ -175,23 +181,24 @@ export default {
 }
 
 .list-head {
-  margin-bottom: 10px;
-  padding: 10px;
+  margin-bottom: 5px;
+  padding: 8px 10px;
 
   .playmode-wrapper {
     .mode {
       border: 2px solid;
       border-radius: 50%;
-      width: 36px;
-      height: 36px;
+      width: 30px;
+      height: 30px;
 
       .iconfont {
-        font-size: 26px;
+        font-size: 20px;
       }
     }
 
     .mode-text {
-      margin-left: 20px;
+      margin-left: 12px;
+      font-size: 14px;
     }
   }
 
@@ -199,7 +206,7 @@ export default {
     margin-left: auto;
 
     .clear {
-      font-size: 24px;
+      font-size: 20px;
     }
   }
 }
@@ -211,19 +218,21 @@ export default {
   bottom: 0;
 
   .list-content {
-    padding: 10px;
+    padding: 5px 10px;
   }
 }
 
 .song-item {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   height: 20px;
 
   .index-wrapper {
-    margin-right: 10px;
+    margin-right: 8px;
+    font-size: 14px;
   }
   .name-wrapper {
     width: 70%;
+    font-size: 14px;
   }
   &.current {
     color: red;
@@ -231,7 +240,7 @@ export default {
 
   .delete-wrapper {
     margin-left: auto;
-    font-size: 1.5em;
+    font-size: 1.2em;
   }
 }
 </style>

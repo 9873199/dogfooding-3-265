@@ -7,7 +7,7 @@
         @click="selectPlay(item,key)"
         :class="['list-item',{twoColumn}]"
         v-for="(item,key) in list"
-        :key="key"
+        :key="item.id || key"
       >
         <!-- 图片插槽 -->
         <div :style="picWrapStyle" :class="['pic-wrap',{twoColumn}]" v-if="hasImg">
