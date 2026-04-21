@@ -28,28 +28,46 @@ exports.getMusicData = function(req, res) {
     request(options, function(error, response, body) {
       if (error) {
         reject(error)
-      } else {
-        try {
-          resolve(JSON.parse(body).data.list.map(item => item.musicData))
-        } catch (error) {
-          reject(error)
+        return
+      }
+      try {
+        const data = JSON.parse(body)
+        if (data.data && data.data.list && Array.isArray(data.data.list)) {
+          resolve(data.data.list.map(item => item.musicData))
+        } else {
+          resolve([])
         }
+      } catch (parseError) {
+        console.error('getMusicData JSON parse error:', parseError)
+        resolve([])
       }
     })
   })
 
   musicData.then(async list => {
-    const mids = list.map(item => item.songmid)
-    const playurl = await getSongPlayUrl(mids)
+    if (!list || list.length === 0) {
+      res.json([])
+      return
+    }
+    try {
+      const mids = list.map(item => item.songmid)
+      const playurl = await getSongPlayUrl(mids)
 
-    const response = list
-      .map(item => {
-        item.purl = playurl[item.songmid]
-        return createSong(item)
-      })
-      .filter(item => item.purl)
+      const response = list
+        .map(item => {
+          item.purl = playurl[item.songmid]
+          return createSong(item)
+        })
+        .filter(item => item.purl)
 
-    res.json(response)
+      res.json(response)
+    } catch (processError) {
+      console.error('getMusicData process error:', processError)
+      res.status(500).json({ error: 'Process failed', message: processError.message })
+    }
+  }).catch(error => {
+    console.error('getMusicData error:', error)
+    res.status(500).json({ error: 'Request failed', message: error.message })
   })
 }
 
@@ -84,9 +102,18 @@ exports.getAlbumData = function(req, res) {
   }
 
   request(options, function(error, response, body) {
-    if (error) throw new Error(error)
-    console.log(JSON.parse(body))
-    res.send(body)
+    if (error) {
+      console.error('Request error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
+    try {
+      const data = JSON.parse(body)
+      res.json(data)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+    }
   })
 }
 
@@ -112,9 +139,18 @@ exports.getMvData = function(req, res) {
   }
 
   request(options, function(error, response, body) {
-    if (error) throw new Error(error)
-
-    res.send(body)
+    if (error) {
+      console.error('Request error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
+    try {
+      const data = JSON.parse(body)
+      res.json(data)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+    }
   })
 }
 
@@ -149,24 +185,44 @@ exports.getAlbumSongList = (req, res) => {
   }
 
   request(options, async (err, response, body) => {
-    if (err) return
+    if (err) {
+      console.error('Request error:', err)
+      res.status(500).json({ error: 'Request failed', message: err.message })
+      return
+    }
+    let songList = []
     try {
-      body = JSON.parse(body).albumSonglist.data.songList.map(
-        item => item.songInfo
-      )
-    } catch (error) {}
-    const url = await getSongPlayUrl(body.map(item => item.mid))
-
-     
-    body = body.map(item => {
-      item.purl = url[item.mid]
-      item.songid=item.id
-      item.songmid=item.mid
-      item.songname = item.name
-      return createSong(item)
-    })
-    .filter(item => item.purl)
-    res.json(body)
+      const data = JSON.parse(body)
+      if (data.albumSonglist && data.albumSonglist.data && data.albumSonglist.data.songList) {
+        songList = data.albumSonglist.data.songList.map(item => item.songInfo)
+      }
+    } catch (error) {
+      console.error('JSON parse error:', error)
+      res.status(500).json({ error: 'Invalid JSON response', message: error.message })
+      return
+    }
+    
+    if (!songList || songList.length === 0) {
+      res.json([])
+      return
+    }
+    
+    try {
+      const url = await getSongPlayUrl(songList.map(item => item.mid))
+      
+      const result = songList.map(item => {
+        item.purl = url[item.mid]
+        item.songid = item.id
+        item.songmid = item.mid
+        item.songname = item.name
+        return createSong(item)
+      }).filter(item => item.purl)
+      
+      res.json(result)
+    } catch (error) {
+      console.error('Process error:', error)
+      res.status(500).json({ error: 'Process failed', message: error.message })
+    }
   })
 }
 
@@ -191,11 +247,15 @@ exports.getTotalInfo = async (req, res) => {
         qs: musicParams,
       },
       (error, response, body) => {
-        if (error) reject(error)
-        try {
-          resolve({ name: 'music', total: JSON.parse(body).data.total })
-        } catch (error) {
+        if (error) {
           reject(error)
+          return
+        }
+        try {
+          const data = JSON.parse(body)
+          resolve({ name: 'music', total: data.data ? data.data.total : 0 })
+        } catch (parseError) {
+          resolve({ name: 'music', total: 0 })
         }
       }
     )
@@ -225,13 +285,16 @@ exports.getTotalInfo = async (req, res) => {
         qs: albumParams,
       },
       (error, response, body) => {
-        if (error) reject(new Error(error))
-
+        if (error) {
+          reject(new Error(error))
+          return
+        }
         try {
-          const total = JSON.parse(body).singerAlbum.data.total
+          const data = JSON.parse(body)
+          const total = data.singerAlbum && data.singerAlbum.data ? data.singerAlbum.data.total : 0
           resolve({ name: 'album', total })
-        } catch (error) {
-          reject(error)
+        } catch (parseError) {
+          resolve({ name: 'album', total: 0 })
         }
       }
     )
@@ -254,11 +317,15 @@ exports.getTotalInfo = async (req, res) => {
         qs: mvParams,
       },
       function(error, response, body) {
-        if (error) reject(new Error(error))
+        if (error) {
+          reject(new Error(error))
+          return
+        }
         try {
-          resolve({ name: 'singerMv', total: JSON.parse(body).data.total })
-        } catch (error) {
-          reject(error)
+          const data = JSON.parse(body)
+          resolve({ name: 'singerMv', total: data.data ? data.data.total : 0 })
+        } catch (parseError) {
+          resolve({ name: 'singerMv', total: 0 })
         }
       }
     )
@@ -266,7 +333,9 @@ exports.getTotalInfo = async (req, res) => {
 
   try {
     var result = await Promise.all([musicPromise, albumPromise, mvPromise])
-  } catch (error) {}
-
-  res.json(result)
+    res.json(result)
+  } catch (error) {
+    console.error('getTotalInfo error:', error)
+    res.status(500).json({ error: 'Request failed', message: error.message })
+  }
 }

@@ -1,5 +1,8 @@
-// // 兼容低版本浏览器
-// import 'babel-polyfill'
+// 修复：兼容低版本浏览器和安卓 WebView
+import 'babel-polyfill'
+
+// 引入 polyfill 修复安卓低版本兼容性问题
+import '@/common/js/polyfill.js'
 
 import 'lib-flexible'
 // 注册全局组件

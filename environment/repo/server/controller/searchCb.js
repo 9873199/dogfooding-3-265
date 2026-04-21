@@ -15,12 +15,22 @@ exports.getHotKey = function(req, res) {
       },
     },
     function(error, response, body) {
-      console.log(response.toJSON())
-
-      if (!error && response.statusCode == 200) {
-        console.log(body)
-
-        res.send(JSON.parse(body))
+      if (error) {
+        console.error('Request error:', error)
+        res.status(500).json({ error: 'Request failed', message: error.message })
+        return
+      }
+      
+      if (response.statusCode == 200) {
+        try {
+          const data = JSON.parse(body)
+          res.json(data)
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError)
+          res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+        }
+      } else {
+        res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
       }
     }
   )
@@ -47,21 +57,43 @@ exports.getSongSearchResult = function(req, res) {
   }
 
   request(options, async function(error, response, body) {
-    if (error) throw new Error(error)
+    if (error) {
+      console.error('Request error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
 
+    let result = []
     try {
-      var result = JSON.parse(body).data.song.list
-    } catch (error) {}
-    const url = await getSongPlayUrl(result.map(item => item.songmid))
+      const data = JSON.parse(body)
+      if (data.data && data.data.song && data.data.song.list) {
+        result = data.data.song.list
+      }
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+      return
+    }
+    
+    if (!result || result.length === 0) {
+      res.json([])
+      return
+    }
+    
+    try {
+      const url = await getSongPlayUrl(result.map(item => item.songmid))
 
-    const searchResult = result
-      .map(item => {
-        item.purl = url[item.songmid]
+      const searchResult = result
+        .map(item => {
+          item.purl = url[item.songmid]
+          return createSong(item)
+        })
+        .filter(item => item.purl)
 
-        return createSong(item)
-      })
-      .filter(item => item.purl)
-
-    res.json(searchResult)
+      res.json(searchResult)
+    } catch (processError) {
+      console.error('Process error:', processError)
+      res.status(500).json({ error: 'Process failed', message: processError.message })
+    }
   })
 }

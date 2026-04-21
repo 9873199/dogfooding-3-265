@@ -39,9 +39,15 @@ exports.getMusicPlayData = function(req, res) {
       body: JSON.stringify(songParams),
     },
     function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (error) {
+        console.error('getMusicPlayData error:', error)
+        res.status(500).json({ error: 'Request failed', message: error.message })
+        return
+      }
+      if (response.statusCode == 200) {
         res.send(body)
-         
+      } else {
+        res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
       }
     }
   )
@@ -60,11 +66,26 @@ exports.getLyric = function(req, res) {
   }
 
   request(options, function(error, response, body) {
-    if (!error && response.statusCode == 200) {
-      var reg = /^\w+\(({[^()]+})\)$/
-      var matches = body.match(reg)
-      var ret = matches[1]
-      res.send(ret)
+    if (error) {
+      console.error('getLyric error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
+    if (response.statusCode == 200) {
+      try {
+        var reg = /^\w+\(({[^()]+})\)$/
+        var matches = body.match(reg)
+        if (matches && matches[1]) {
+          res.send(matches[1])
+        } else {
+          res.json({ lyric: '' })
+        }
+      } catch (parseError) {
+        console.error('getLyric parse error:', parseError)
+        res.json({ lyric: '' })
+      }
+    } else {
+      res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
     }
   })
 }
@@ -107,19 +128,25 @@ exports.getSongPlayUrl = songmid => {
       function(error, response, body) {
         let url = {}
 
-        if (!error && response.statusCode == 200) {
+        if (error) {
+          console.error('getSongPlayUrl error:', error)
+          resolve(url)
+          return
+        }
+        if (response.statusCode == 200) {
           try {
             var result = JSON.parse(body)
-             
-          } catch (error) {
-            result = []
+            if (result.req && result.req.data && result.req.data.midurlinfo) {
+              result.req.data.midurlinfo.forEach((item, index) => {
+                url[item.songmid] = item.purl
+              })
+            }
+          } catch (parseError) {
+            console.error('getSongPlayUrl parse error:', parseError)
           }
-          result.req.data.midurlinfo.forEach((item, index) => {
-            url[item.songmid] = item.purl
-          })
           resolve(url)
         } else {
-          reject(error)
+          resolve(url)
         }
       }
     )

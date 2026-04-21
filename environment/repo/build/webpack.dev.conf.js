@@ -24,7 +24,7 @@ const devWebpackConfig = merge(baseWebpackConfig, {
     clientLogLevel: 'warning',
     historyApiFallback: true,
     hot: true,
-    compress: true,
+    compress: false, // 修复：禁用压缩以避免 Node.js 24 兼容性问题
     host: HOST || config.dev.host,
     port: PORT || config.dev.port,
     open: config.dev.autoOpenBrowser,
@@ -34,7 +34,10 @@ const devWebpackConfig = merge(baseWebpackConfig, {
     quiet: true, // necessary for FriendlyErrorsPlugin
     watchOptions: {
       poll: config.dev.poll,
-    }
+    },
+    // 修复：禁用 HTTP/2 和 SPDY 以避免 Node.js 24 兼容性问题
+    http2: false,
+    https: false
   },
   plugins: [
     new webpack.DefinePlugin({

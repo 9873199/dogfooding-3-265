@@ -79,6 +79,9 @@ export default {
       }
       this.oldRoute = from;
       this.setTransitionName(to, from);
+      
+      // 修复：路由变化时恢复播放器状态
+      this.restorePlayerState()
     }
   },
   components: { SongPlayer },
@@ -122,7 +125,53 @@ export default {
         .catch(err => {
           console.error(err);
         });
+    },
+    // 修复：恢复播放器状态
+    restorePlayerState() {
+      const store = this.$store
+      if (!store) return
+      
+      const state = store.state
+      const hasPlaylist = state.playlist && state.playlist.length > 0
+      const isPlaying = state.playing
+      
+      // 如果有播放列表且之前是播放状态，恢复播放
+      if (hasPlaylist && isPlaying) {
+        this.$nextTick(() => {
+          const audio = $("audio")[0]
+          if (audio && audio.paused) {
+            // 尝试恢复播放
+            audio.play().catch(err => {
+              console.log('恢复播放失败:', err)
+              // 如果自动恢复失败，更新状态为暂停
+              store.commit('SET_PLAYING_STATE', false)
+            })
+          }
+        })
+      }
     }
+  },
+  // 修复：页面可见性变化时恢复播放器
+  mounted() {
+    // 监听页面可见性变化
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // 页面重新可见时恢复播放器状态
+        this.restorePlayerState()
+      }
+    })
+    
+    // 监听 pageshow 事件（处理浏览器返回按钮）
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        // 页面从缓存中恢复
+        this.restorePlayerState()
+      }
+    })
+  },
+  beforeDestroy() {
+    document.removeEventListener('visibilitychange', this.restorePlayerState)
+    window.removeEventListener('pageshow', this.restorePlayerState)
   }
 };
 </script>
