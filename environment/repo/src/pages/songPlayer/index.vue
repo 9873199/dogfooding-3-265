@@ -288,6 +288,28 @@ export default {
       // 设置进度条缓冲进度高度
     })
   },
+  // 修复：组件销毁时清理资源，防止内存泄漏
+  beforeDestroy() {
+    // 停止歌词
+    if (this.currentLyric) {
+      this.currentLyric.stop()
+      this.currentLyric = null
+    }
+    // 停止音频
+    if (this.audio) {
+      this.audio.pause()
+      this.audio.src = ''
+      this.audio = null
+    }
+    // 清理定时器
+    if (this._lyricTimer) {
+      clearTimeout(this._lyricTimer)
+      this._lyricTimer = null
+    }
+    // 清理事件监听
+    document.body.style.overflow = ''
+    document.body.style.touchAction = ''
+  },
   watch: {
     curRange(newR, oldR) {
       this.oldRange = oldR
@@ -517,48 +539,81 @@ export default {
       const touch = e.touches[0]
       this.touch.blurRadio = this.touch.blur
       this.touch.ismoved = false
+      this.touch.isScrolling = false
 
       this.touch.initiated = true
       this.touch.startX = touch.pageX
       this.touch.startY = touch.pageY
       this.touch.left = this.currentShow === 'cd' ? 0 : -window.innerWidth
+      
+      // 修复：禁用页面滚动，防止滚动冲突
+      document.body.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
       // console.log(this.touch)
     },
     middleTouchMove(e) {
-      if (this.touch.initiated) {
-        const deltaX = e.touches[0].pageX - this.touch.startX
-        const deltaY = e.touches[0].pageY - this.touch.startY
-        if (Math.abs(deltaX) < Math.abs(deltaY / 3) || Math.abs(deltaX) < 3) {
-          this.touch.ismoved = false
+      if (!this.touch.initiated) return
+      
+      const touch = e.touches[0]
+      const deltaX = touch.pageX - this.touch.startX
+      const deltaY = touch.pageY - this.touch.startY
+      
+      // 修复：判断滑动方向，避免与页面滚动冲突
+      if (!this.touch.isScrolling) {
+        // 首次移动时判断滑动方向
+        if (Math.abs(deltaX) < Math.abs(deltaY) && Math.abs(deltaY) > 5) {
+          // 垂直滑动，不处理，让页面滚动
+          this.touch.isScrolling = true
+          this.touch.initiated = false
+          document.body.style.overflow = ''
+          document.body.style.touchAction = ''
           return
-        } else {
-          this.touch.ismoved = true
         }
-        const offsetWidth = Math.min(
-          0,
-          Math.max(-window.innerWidth, this.touch.left + deltaX)
-        )
-
-        this.touch.percent = Math.abs(offsetWidth / window.innerWidth)
-
-        const blur =
-          this.currentShow === 'cd'
-            ? Math.max(
-                5,
-                Math.min(
-                  this.touch.blur,
-                  (1 - this.touch.percent) * this.touch.blur
-                )
-              )
-            : Math.min(40, (1 - this.touch.percent) * this.touch.blur + 5)
-        $('.middle-l').css({ opacity: 1 - this.touch.percent })
-        $('.middle-r').css({ transform: `translate3d(${offsetWidth}px,0,0)` })
-
-        // 设置背景模糊
-        $('.background').css(filter, `blur(${blur}px)`)
+        if (Math.abs(deltaX) > 5) {
+          this.touch.isScrolling = true
+        }
       }
+      
+      if (Math.abs(deltaX) < Math.abs(deltaY / 3) || Math.abs(deltaX) < 3) {
+        this.touch.ismoved = false
+        return
+      } else {
+        this.touch.ismoved = true
+      }
+      
+      // 修复：阻止默认行为，防止页面滚动穿透
+      if (e.cancelable) {
+        e.preventDefault()
+      }
+      
+      const offsetWidth = Math.min(
+        0,
+        Math.max(-window.innerWidth, this.touch.left + deltaX)
+      )
+
+      this.touch.percent = Math.abs(offsetWidth / window.innerWidth)
+
+      const blur =
+        this.currentShow === 'cd'
+          ? Math.max(
+              5,
+              Math.min(
+                this.touch.blur,
+                (1 - this.touch.percent) * this.touch.blur
+              )
+            )
+          : Math.min(40, (1 - this.touch.percent) * this.touch.blur + 5)
+      $('.middle-l').css({ opacity: 1 - this.touch.percent })
+      $('.middle-r').css({ transform: `translate3d(${offsetWidth}px,0,0)` })
+
+      // 设置背景模糊
+      $('.background').css(filter, `blur(${blur}px)`)
     },
     middleTouchEnd() {
+      // 修复：恢复页面滚动
+      document.body.style.overflow = ''
+      document.body.style.touchAction = ''
+      
       console.log(this.touch.percent)
       if (
         this.touch.ismoved === false ||
@@ -818,6 +873,24 @@ export default {
       this.setPlayingState(true)
     },
     oncanplaythrough() {
+      // iOS 音频自动播放修复：需要用户交互后才能播放
+      this.playWithUserInteraction()
+    },
+    // iOS 音频自动播放修复方法
+    playWithUserInteraction() {
+      // 检查是否是 iOS 设备
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+      
+      if (isIOS && !this._hasUserInteracted) {
+        // iOS 需要等待用户交互后才能播放
+        this.setPlayingState(false)
+        this.Toast({
+          message: '请点击播放按钮开始播放',
+          duration: 2000
+        })
+        return
+      }
+      
       this.play()
     },
     back() {

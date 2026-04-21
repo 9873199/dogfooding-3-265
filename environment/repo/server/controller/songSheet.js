@@ -15,8 +15,15 @@ exports.getCategoryTags = function(req, res) {
       qs: commonParams,
     },
     function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (error) {
+        console.error('getCategoryTags error:', error)
+        res.status(500).json({ error: 'Request failed', message: error.message })
+        return
+      }
+      if (response.statusCode == 200) {
         res.send(body)
+      } else {
+        res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
       }
     }
   )
@@ -42,8 +49,15 @@ exports.getSongSheetList = function(req, res) {
       qs: params,
     },
     function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (error) {
+        console.error('getSongSheetList error:', error)
+        res.status(500).json({ error: 'Request failed', message: error.message })
+        return
+      }
+      if (response.statusCode == 200) {
         res.send(body)
+      } else {
+        res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
       }
     }
   )
@@ -71,25 +85,50 @@ exports.getSongList = function(req, res) {
       headers: {
         referer: 'https://y.qq.com/',
         host: 'y.qq.com',
-        
       },
     },
     async function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (error) {
+        console.error('Request error:', error)
+        res.status(500).json({ error: 'Request failed', message: error.message })
+        return
+      }
+      
+      if (response.statusCode == 200) {
+        let songlist = []
         try {
-          body = JSON.parse(body).cdlist[0].songlist
-        } catch (error) {}
-        const url = await getSongPlayUrl(body.map(item => item.songmid))
+          const data = JSON.parse(body)
+          if (data.cdlist && data.cdlist[0] && data.cdlist[0].songlist) {
+            songlist = data.cdlist[0].songlist
+          }
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError)
+          res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+          return
+        }
+        
+        if (!songlist || songlist.length === 0) {
+          res.json([])
+          return
+        }
+        
+        try {
+          const url = await getSongPlayUrl(songlist.map(item => item.songmid))
 
-        res.json(
-          body
-            .map(item => {
-              item.purl = url[item.songmid]
-              
-              return createSong(item)
-            })
-            .filter(item => item.purl)
-        )
+          res.json(
+            songlist
+              .map(item => {
+                item.purl = url[item.songmid]
+                return createSong(item)
+              })
+              .filter(item => item.purl)
+          )
+        } catch (processError) {
+          console.error('Process error:', processError)
+          res.status(500).json({ error: 'Process failed', message: processError.message })
+        }
+      } else {
+        res.status(response.statusCode).json({ error: 'Request failed', statusCode: response.statusCode })
       }
     }
   )

@@ -82,7 +82,9 @@ export default {
   },
   methods: {
     ...mapMutations({
-      setCurrentIndex: 'SET_CURRENT_INDEX'
+      setCurrentIndex: 'SET_CURRENT_INDEX',
+      setPlaylist: 'SET_PLAYLIST',
+      setSequenceList: 'SET_SEQUENCE_LIST'
     }),
     ...mapActions(['deleteSong', 'deleteSongList']),
 
@@ -108,30 +110,70 @@ export default {
       }
     },
     deleteOne(item) {
+      // 修复：同步更新播放列表状态
+      const playlistIndex = this.playlist.findIndex(song => song.id === item.id)
+      const sequenceIndex = this.sequenceList.findIndex(song => song.id === item.id)
+      
+      let newPlaylist = this.playlist.slice()
+      let newSequenceList = this.sequenceList.slice()
+      
+      if (playlistIndex > -1) {
+        newPlaylist.splice(playlistIndex, 1)
+      }
+      if (sequenceIndex > -1) {
+        newSequenceList.splice(sequenceIndex, 1)
+      }
+      
+      // 同步更新 Vuex 状态
+      this.setPlaylist(newPlaylist)
+      this.setSequenceList(newSequenceList)
+      
       this.deleteSong(item)
       if (!this.playlist.length) {
         this.hide()
       }
     },
     playItem(item, index) {
+      // 修复：确保播放列表与 Vuex 状态同步
+      let targetIndex = index
       if (this.mode === playMode.random) {
-        index = this.playlist.findIndex(song => item.id === song.id)
+        targetIndex = this.playlist.findIndex(song => item.id === song.id)
       }
-      this.setCurrentIndex(index)
+      
+      // 验证索引有效性
+      if (targetIndex >= 0 && targetIndex < this.playlist.length) {
+        this.setCurrentIndex(targetIndex)
+      } else {
+        // 如果找不到，重新同步播放列表
+        const newIndex = this.playlist.findIndex(song => item.id === song.id)
+        if (newIndex > -1) {
+          this.setCurrentIndex(newIndex)
+        }
+      }
     },
     scrollToCurrent() {
       const index = this.sequenceList.findIndex(
         item => item.id === this.currentSong.id
       )
-      this.$refs.listContent.scrollToElement(this.$refs.songItem[index], 300)
+      if (index > -1 && this.$refs.songItem && this.$refs.songItem[index]) {
+        this.$refs.listContent.scrollToElement(this.$refs.songItem[index], 300)
+      }
     }
   },
   watch: {
     currentSong(newSong, oldSong) {
-      if (newSong.id === oldSong.id || newSong.id === undefined) {
+      if (!newSong || !oldSong || newSong.id === oldSong.id || newSong.id === undefined) {
         return
       }
       this.$nextTick(this.scrollToCurrent)
+    },
+    // 修复：监听播放列表变化，确保状态同步
+    playlist(newVal, oldVal) {
+      if (newVal.length !== oldVal.length) {
+        this.$nextTick(() => {
+          this.$refs.listContent && this.$refs.listContent.refresh()
+        })
+      }
     }
   }
 }

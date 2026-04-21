@@ -20,12 +20,22 @@ function getMvPlayUrl(vids) {
   }
   return new Promise((resolve, reject) => {
     request(options, function(error, response, body) {
-      if (error) reject(new Error(error))
+      if (error) {
+        reject(new Error(error))
+        return
+      }
+      let data
       try {
-        body = JSON.parse(body).getMvUrl.data
-      } catch (error) {}
+        data = JSON.parse(body)
+        body = data.getMvUrl ? data.getMvUrl.data : {}
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError)
+        body = {}
+      }
       for (let key in body) {
-        body[key] = body[key].mp4.slice(1).map(item => item.freeflow_url[0])
+        if (body[key] && body[key].mp4) {
+          body[key] = body[key].mp4.slice(1).map(item => item.freeflow_url[0])
+        }
       }
       resolve(body)
     })
@@ -63,19 +73,41 @@ exports.getHotMvList = function(req, res) {
   }
 
   request(options, async function(error, response, body) {
-    if (error) throw new Error(error)
+    if (error) {
+      console.error('Request error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
+
+    let list = []
+    try {
+      const data = JSON.parse(body)
+      if (data.mv_list && data.mv_list.data && data.mv_list.data.list) {
+        list = data.mv_list.data.list
+      }
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      res.status(500).json({ error: 'Invalid JSON response', message: parseError.message })
+      return
+    }
+    
+    if (!list || list.length === 0) {
+      res.json([])
+      return
+    }
 
     try {
-      body = JSON.parse(body).mv_list.data.list
-    } catch (error) {}
-
-    const vids = await getMvPlayUrl(body.map(item => item.vid))
-    body = body.map(item => {
-      item.playurls = vids[item.vid]
-      return createMv(item)
-    })
-     
-    res.send(body)
+      const vids = await getMvPlayUrl(list.map(item => item.vid))
+      const result = list.map(item => {
+        item.playurls = vids[item.vid]
+        return createMv(item)
+      })
+      
+      res.json(result)
+    } catch (processError) {
+      console.error('Process error:', processError)
+      res.status(500).json({ error: 'Process failed', message: processError.message })
+    }
   })
 }
 
@@ -104,8 +136,11 @@ exports.getMvTagList = function(req, res) {
   }
 
   request(options, function(error, response, body) {
-    if (error) throw new Error(error)
-
+    if (error) {
+      console.error('getMvTagList error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
     res.send(body)
   })
 }
@@ -133,8 +168,11 @@ exports.getMvData = function(req, res) {
   }
 
   request(options, function(error, response, body) {
-    if (error) throw new Error(error)
-
+    if (error) {
+      console.error('getMvData error:', error)
+      res.status(500).json({ error: 'Request failed', message: error.message })
+      return
+    }
     res.send(body)
   })
 }
