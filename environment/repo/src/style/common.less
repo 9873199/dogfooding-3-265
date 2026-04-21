@@ -1,0 +1,87 @@
+html,
+body {
+  -webkit-overflow-scrolling: touch;
+  width: 100vw;
+}
+
+div,
+td,
+tr,
+table,
+img,
+p,
+span,
+i,
+ul,
+li {
+  box-sizing: border-box;
+}
+
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.line2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+
+}
+
+
+
+.mint-toast {
+  padding: 10px !important;
+
+  .mint-toast-text {
+    .font-dpr(12Px)
+  }
+}
+
+// 全屏滚动页面
+.fullScreenFixed {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #eee;
+}
+
+
+.native-vertical-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+.horizontal-scroll {
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  overflow-x: auto;
+
+  ul[class*=list]:first-child {
+    display: flex;
+
+  }
+
+  &::-webkit-scrollbar {
+    display: none;
+    background: transparent;
+  }
+}
+
+.hidden {
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+img,
+video {
+  vertical-align: middle;
+}

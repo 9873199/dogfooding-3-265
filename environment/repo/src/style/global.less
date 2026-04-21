@@ -1,0 +1,161 @@
+.font-dpr(@font-size) {
+  font-size: @font-size;
+
+  /* no*/
+  [data-dpr="2"] & {
+    font-size: @font-size * 2;
+    /* no  */
+  }
+
+  [data-dpr="3"] & {
+    font-size: @font-size * 3;
+    /* no  */
+  }
+}
+
+.posCenter(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.posXY(@selector: div, @left: auto, @top: auto, @right: auto, @bottom: auto) {
+  position: relative;
+
+  &>.@{selector} {
+    position: absolute;
+    left: @left;
+    bottom: @bottom;
+    top: @top;
+    right: @right;
+  }
+}
+
+.posCenterX(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    left: 50%;
+    // top: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+.posCenterY(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    // left: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+.posCenterBot(@class: div, @bot: 0) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    left: 50%;
+    // top: 50%;
+    bottom: @bot;
+    transform: translateX(-50%);
+  }
+}
+
+.posCenterTop(@class: div, @top: 0) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    left: 50%;
+    // top: 50%;
+    top: @top;
+    transform: translateX(-50%);
+  }
+}
+
+.posRightBot(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+  }
+}
+
+.posRightCen(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+.fullBoxParent(@class: div) {
+  position: relative;
+
+  &>.@{class} {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+  }
+}
+
+.fullBox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+
+}
+
+.flexYCenter {
+  display: flex;
+  align-items: center;
+}
+
+.flexAround {
+  display: flex;
+  justify-content: space-around;
+}
+
+.flexBetween {
+  display: flex;
+  justify-content: space-between;
+}
+
+.flexXCenter {
+  display: flex;
+  justify-content: center;
+}
+
+.flexCenter {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.mint-msgbox {
+  z-index: 300;
+}
+
+.mint-msgbox-btns {
+  button {
+    .font-dpr(12Px);
+  }
+}
