@@ -1,11 +1,11 @@
 <template>
-  <div class="list-wrap" >
+  <div class="list-wrap">
     <div
-      :style="{marginTop:$attrs.marginTop+'px'}"
+      :style="{marginTop:$attrs.marginTop+'px', transform: 'translateZ(0)'}"
       @click="selectItem(item,index)"
       :class="['list-item']"
-      :key="index"
-      v-for="(item,index) in list"
+      :key="item.id || index"
+      v-for="(item,index) in renderList"
     >
       <div :class="['sortIndex',{newLoad:item.newLoad}]">{{index+preIndex+1}}</div>
       <div class="text-wrap">
@@ -24,7 +24,9 @@ import { mapActions } from 'vuex'
 export default {
   name: 'music-list',
   data() {
-    return {}
+    return {
+      renderCount: 50
+    }
   },
   props: {
     preIndex: {
@@ -38,6 +40,11 @@ export default {
     list: {
       type: Array,
       default: () => []
+    }
+  },
+  computed: {
+    renderList() {
+      return this.list.slice(0, this.renderCount)
     }
   },
   mounted() {
@@ -69,7 +76,8 @@ export default {
   display: flex;
   align-items: center;
   height: 40px;
-
+  will-change: transform;
+  backface-visibility: hidden;
   border-radius: 3px;
 
   .sortIndex {

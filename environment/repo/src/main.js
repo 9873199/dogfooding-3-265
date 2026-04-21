@@ -1,5 +1,4 @@
-// // 兼容低版本浏览器
-// import 'babel-polyfill'
+import 'babel-polyfill'
 
 import 'lib-flexible'
 // 注册全局组件

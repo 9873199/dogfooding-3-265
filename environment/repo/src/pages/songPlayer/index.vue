@@ -53,11 +53,15 @@
             <cube-scroll
               @scroll-end="onScrollEnd"
               :scroll-events="['scroll-end']"
+              :listen-scroll="true"
               local
               ref="scrollLyric"
               v-if="currentLyric && currentLyric.lines.length>0"
               :data="currentLyric && currentLyric.lines"
               class="scroll-lyric"
+              @touchstart.native.stop="onLyricTouchStart"
+              @touchmove.native.stop.prevent="onLyricTouchMove"
+              @touchend.native.stop="onLyricTouchEnd"
             >
               <div class="lyric-wrapper">
                 <p
@@ -152,7 +156,7 @@
         :src="currentSong.url"
         @canplay="oncanplay"
         ref="audio"
-        autoplay
+        preload="metadata"
       ></audio>
     </div>
     <!-- 吸底播放器 -->
@@ -240,7 +244,8 @@ export default {
       waiting: false,
       currentShow: 'cd',
       songReady: false,
-      showProgressBar: false
+      showProgressBar: false,
+      lyricScrolling: false
     }
   },
   components: {
@@ -280,12 +285,21 @@ export default {
     this.initialed = false
     this.touch = { blur: 40 }
   },
+  activated() {
+    if (this.audio && this.playing && this.songReady) {
+      this.audio.play().catch(() => {})
+      this.currentLyric && this.currentLyric.play(this.audio.currentTime * 1000)
+    }
+  },
+  deactivated() {
+    this.currentLyric && this.currentLyric.stop()
+  },
   mounted() {
     this.$nextTick(() => {
-      // 获取mini进度条高度
       this.audio = $('audio')[0]
       this.$refs.background.style[filter] = `blur(${this.touch.blur}px)`
-      // 设置进度条缓冲进度高度
+      this.initAudioPlayPolicy()
+      this.restorePlayerState()
     })
   },
   watch: {
@@ -300,15 +314,19 @@ export default {
       this.oldIndex = oldIndex
     },
     playing() {
-      // debugger
       if (!this.songReady) {
         return
       }
-      this.playing
-        ? this.audio.play().catch(err => {
-            console.log(err)
-          })
-        : this.audio.pause()
+      if (this.playing) {
+        this.audio.play().catch(err => {
+          console.warn('Audio play failed:', err.name, err.message)
+          if (err.name === 'NotAllowedError') {
+            this.$emit('audio:need-interaction')
+          }
+        })
+      } else {
+        this.audio.pause()
+      }
     },
     hasPlaylist(newHas) {
       newHas
@@ -828,6 +846,40 @@ export default {
     },
     open() {
       this.setFullScreen(true)
+    },
+    initAudioPlayPolicy() {
+      const initAudio = () => {
+        if (!this.audio) return
+        this.audio.load()
+        document.removeEventListener('touchend', initAudio, true)
+        document.removeEventListener('click', initAudio, true)
+      }
+      document.addEventListener('touchend', initAudio, true)
+      document.addEventListener('click', initAudio, true)
+    },
+    onLyricTouchStart(e) {
+      this.lyricScrolling = true
+      this.currentLyric && this.currentLyric.stop()
+    },
+    onLyricTouchMove(e) {
+      e.stopPropagation()
+      e.preventDefault()
+    },
+    onLyricTouchEnd(e) {
+      this.lyricScrolling = false
+      setTimeout(() => {
+        if (this.playing && this.songReady) {
+          this.currentLyric && this.currentLyric.play(this.audio.currentTime * 1000)
+        }
+      }, 300)
+    },
+    restorePlayerState() {
+      if (this.playlist.length && this.currentSong.url) {
+        this.songReady = true
+        if (this.playing) {
+          this.audio.play().catch(() => {})
+        }
+      }
     }
   }
 }
@@ -930,6 +982,9 @@ export default {
 
     .middle-r {
       height: 100%;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
 
       .my-loading {
         top: 40%;
@@ -938,6 +993,7 @@ export default {
 
       .scroll-lyric {
         text-align: center;
+        touch-action: pan-y;
 
         .lyricLine {
           padding: 0 30px;
@@ -945,6 +1001,7 @@ export default {
           .font-dpr(8px); /* no  */
 
           color: hsla(130, 30%, 100%, 0.5);
+          touch-action: none;
 
           &:first-child {
             padding: 0 80px;

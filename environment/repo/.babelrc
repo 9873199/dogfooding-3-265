@@ -2,7 +2,11 @@
     "presets": [
         ["env",
         {
-            "modules": false
+            "modules": false,
+            "targets": {
+                "browsers": ["> 1%", "last 2 versions", "Android >= 4.4", "iOS >= 8", "not ie <= 8"]
+            },
+            "useBuiltIns": true
         }],
         "stage-2"
     ],
