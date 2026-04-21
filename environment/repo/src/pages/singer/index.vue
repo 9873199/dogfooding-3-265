@@ -2,8 +2,8 @@
   <div>
     <my-loading v-if="loadList.length===0"></my-loading>
     <cube-index-list :speed="300" :options="options" @pulling-up="onPullingUp" ref="indexList" :data="loadList">
-      <cube-index-list-group v-for="(group, index) in loadList" :key="index" :group="group">
-        <router-link tag="div" v-for="(item, index) in group.items" :key="index" :to="{name: 'singerDetail',
+      <cube-index-list-group v-for="(group, index) in loadList" :key="group.name || index" :group="group">
+        <router-link tag="div" v-for="(item, index) in group.items" :key="item.id" :to="{name: 'singerDetail',
         query: item
       }">
           <mt-cell class="singer-item" :item="item" :title="item.name">

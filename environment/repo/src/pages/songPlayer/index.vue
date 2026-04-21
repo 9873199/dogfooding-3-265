@@ -22,9 +22,9 @@
         <div
           :style="middleStyle"
           class="middle"
-          @touchstart.prevent="middleTouchStart"
-          @touchmove.prevent="middleTouchMove"
-          @touchend.prevent="middleTouchEnd"
+          @touchstart="middleTouchStart"
+          @touchmove="middleTouchMove"
+          @touchend="middleTouchEnd"
         >
           <div class="middle-l" ref="middleL">
             <transition name="cd">
@@ -152,9 +152,20 @@
         :src="currentSong.url"
         @canplay="oncanplay"
         ref="audio"
-        autoplay
+        :autoplay="false"
+        playsinline
+        webkit-playsinline
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
       ></audio>
     </div>
+    <transition name="fade">
+      <div v-if="showAutoplayTip" class="autoplay-tip" @click="handleAutoplayTip">
+        <div class="tip-content">
+          <p>点击开始播放</p>
+        </div>
+      </div>
+    </transition>
     <!-- 吸底播放器 -->
     <transition @enter="miniEnter">
       <div
@@ -223,13 +234,13 @@ const transform = prefixStyle('transform')
 const curRange = { radio: 96, range: 0 }
 
 export default {
-  name: '',
+  name: 'SongPlayer',
   mixins: [mixin],
   data() {
     return {
-      // muted: false,
+      showAutoplayTip: false,
+      userInteracted: false,
       curRange,
-      // timeRanges: [curRange],
       curLyric: '',
       curLine: 0,
       currentLyric: null,
@@ -282,11 +293,19 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
-      // 获取mini进度条高度
       this.audio = $('audio')[0]
       this.$refs.background.style[filter] = `blur(${this.touch.blur}px)`
-      // 设置进度条缓冲进度高度
     })
+  },
+  beforeDestroy() {
+    if (this.currentLyric) {
+      this.currentLyric.stop()
+      this.currentLyric = null
+    }
+    if (this.audio) {
+      this.audio.pause()
+      this.audio.src = ''
+    }
   },
   watch: {
     curRange(newR, oldR) {
@@ -296,19 +315,22 @@ export default {
       this.audio.volume = this.volume
     },
     currentIndex(newIndex, oldIndex) {
-      // console.log(newIndex, oldIndex);
       this.oldIndex = oldIndex
     },
-    playing() {
-      // debugger
+    playing(newPlaying) {
       if (!this.songReady) {
         return
       }
-      this.playing
-        ? this.audio.play().catch(err => {
-            console.log(err)
-          })
-        : this.audio.pause()
+      if (newPlaying) {
+        this.audio.play().catch(err => {
+          console.log('播放失败:', err)
+          if (err.name === 'NotAllowedError') {
+            this.showAutoplayTip = true
+          }
+        })
+      } else {
+        this.audio.pause()
+      }
     },
     hasPlaylist(newHas) {
       newHas
@@ -332,22 +354,20 @@ export default {
     async currentSong(newSong, oldSong) {
       if (this.__isEmptyObject(newSong)) {
         this.audio.src = ''
+        this.setPlayingState(false)
         return
       }
-      if (oldSong.id == newSong.id) {
+      if (oldSong && oldSong.id === newSong.id) {
         return
       }
       if (this.$refs.progress) {
         this.$refs.progress.transition = 'all .2s'
       }
 
-      // this.radio = 96;
-      this.curRange = { radio: 96, range: 0 } //缓冲进度置零
+      this.curRange = { radio: 96, range: 0 }
       this.currentLyric && this.currentLyric.stop()
       this.currentLyric = null
-      // 获取歌词
       this.getLyric()
-      // 重置
       this.resetStart()
     }
   },
@@ -517,23 +537,40 @@ export default {
       const touch = e.touches[0]
       this.touch.blurRadio = this.touch.blur
       this.touch.ismoved = false
+      this.touch.directionLocked = ''
 
       this.touch.initiated = true
       this.touch.startX = touch.pageX
       this.touch.startY = touch.pageY
       this.touch.left = this.currentShow === 'cd' ? 0 : -window.innerWidth
-      // console.log(this.touch)
     },
     middleTouchMove(e) {
       if (this.touch.initiated) {
         const deltaX = e.touches[0].pageX - this.touch.startX
         const deltaY = e.touches[0].pageY - this.touch.startY
-        if (Math.abs(deltaX) < Math.abs(deltaY / 3) || Math.abs(deltaX) < 3) {
-          this.touch.ismoved = false
-          return
-        } else {
-          this.touch.ismoved = true
+
+        const absDeltaX = Math.abs(deltaX)
+        const absDeltaY = Math.abs(deltaY)
+
+        if (!this.touch.directionLocked) {
+          if (absDeltaX > absDeltaY) {
+            this.touch.directionLocked = 'h'
+          } else {
+            this.touch.directionLocked = 'v'
+          }
         }
+
+        if (this.touch.directionLocked === 'v') {
+          return
+        }
+
+        if (absDeltaX < 3) {
+          return
+        }
+
+        e.preventDefault()
+
+        this.touch.ismoved = true
         const offsetWidth = Math.min(
           0,
           Math.max(-window.innerWidth, this.touch.left + deltaX)
@@ -554,17 +591,16 @@ export default {
         $('.middle-l').css({ opacity: 1 - this.touch.percent })
         $('.middle-r').css({ transform: `translate3d(${offsetWidth}px,0,0)` })
 
-        // 设置背景模糊
         $('.background').css(filter, `blur(${blur}px)`)
       }
     },
     middleTouchEnd() {
-      console.log(this.touch.percent)
       if (
         this.touch.ismoved === false ||
         this.touch.percent === 0 ||
         this.touch.percent === 1
       ) {
+        this.touch.initiated = false
         return
       }
       const percent = 0.2
@@ -786,14 +822,27 @@ export default {
       }
     },
     oncanplay() {
-      // console.log('canplay')
-
       if (this.isBuffered) {
         return
       }
 
       this.waiting = false
       this.songReady = true
+      
+      if (this.playing && !this.userInteracted) {
+        this.audio.play().catch(() => {
+          this.showAutoplayTip = true
+        })
+      }
+    },
+    handleAutoplayTip() {
+      this.userInteracted = true
+      this.showAutoplayTip = false
+      if (this.playing) {
+        this.audio.play().catch(err => {
+          console.log('播放失败:', err)
+        })
+      }
     },
     onerror() {
       // console.log(this.audio.error, this.audio.networkState)
@@ -1150,6 +1199,41 @@ export default {
 
 .iconfont {
   font-size: 42px;
+}
+
+.autoplay-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .tip-content {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 30px 50px;
+    border-radius: 12px;
+    text-align: center;
+    
+    p {
+      font-size: 18px;
+      color: #333;
+    }
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
  

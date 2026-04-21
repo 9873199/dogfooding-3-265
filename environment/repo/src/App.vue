@@ -1,5 +1,5 @@
 <template>
-  <div @click.once="initPlay" id="app" style>
+  <div id="app" style>
     <div class="page">
       <nav-bar
         class="home-navbar"
@@ -9,7 +9,7 @@
       ></nav-bar>
 
       <transition :name="transitionName">
-        <keep-alive max="1">
+        <keep-alive :include="cachedViews">
           <router-view
             :style="zIndex"
             :key="$route.query.id"
@@ -18,10 +18,9 @@
         </keep-alive>
       </transition>
     </div>
-    <!-- 音乐播放器 -->
-    <!-- <keep-alive> -->
-    <song-player></song-player>
-    <!-- </keep-alive> -->
+    <keep-alive>
+      <song-player></song-player>
+    </keep-alive>
   </div>
 </template>
 <script>
@@ -36,12 +35,10 @@ export default {
         {
           label: "歌手",
           name: "singer"
-          // link: '/singer'
         },
         {
           label: "歌单",
           name: "songSheet"
-          // link: '/songSheet'
         },
         {
           label: "视频",
@@ -57,6 +54,9 @@ export default {
     };
   },
   computed: {
+    cachedViews() {
+      return ['Singer', 'SongSheet', 'Mv', 'Search'];
+    },
     zIndex() {
       return this.$route.name
         ? {
@@ -115,13 +115,6 @@ export default {
           this.transitionName = "forward";
         }
       }
-    },
-    initPlay() {
-      $("audio")[0]
-        .play()
-        .catch(err => {
-          console.error(err);
-        });
     }
   }
 };
