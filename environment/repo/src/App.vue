@@ -19,9 +19,9 @@
       </transition>
     </div>
     <!-- 音乐播放器 -->
-    <!-- <keep-alive> -->
-    <song-player></song-player>
-    <!-- </keep-alive> -->
+    <keep-alive>
+      <song-player></song-player>
+    </keep-alive>
   </div>
 </template>
 <script>
